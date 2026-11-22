@@ -88,10 +88,13 @@ curl -s "$URL/einrichten" > "$WORK/r.html"
 expect "Version in der Fusszeile" "$WORK/r.html" "Version $(cat "$ROOT/VERSION")"
 
 echo "2. Einrichten (direkt in der Datenbank) und Admin-Anmeldung"
-php -r "require '$APP/app/bootstrap.php'; require '$APP/app/lib.php'; kd_migrate(); setting_set('kd_team_name', 'FC Test Girls');
+php -r "require '$APP/app/bootstrap.php'; require '$APP/app/lib.php'; kd_migrate();
+  db()->exec('CREATE TABLE settings (name VARCHAR(100) PRIMARY KEY, value TEXT)'); db_insert('settings', ['name' => 'kd_team_name', 'value' => 'FC Test Girls']);
+  setting_set('kd_schema_version', '3');
   db_insert('kd_admins', ['name' => 'Sandra Trainerin', 'email' => 'sandra@test.ch', 'phone' => '079 555 66 77', 'password_hash' => password_hash('trainerpasswort', PASSWORD_DEFAULT), 'active' => 1, 'created_at' => now()]);"
 curl -s "$URL/" > "$WORK/r.html"
 expect "Start ohne Link: Hinweis auf persönlichen Link" "$WORK/r.html" "Bitte deinen persönlichen Link öffnen"
+expect "Mannschaftsname aus früherer Version übernommen" "$WORK/r.html" "<strong>FC Test Girls</strong>"
 snap "01-start" "$WORK/r.html"
 code "$URL/meine" > "$WORK/s.txt"; expect "Ohne Link keine Läufe" "$WORK/s.txt" "302"
 code "$URL/admin" > "$WORK/s.txt"; expect "Ohne Login kein Admin" "$WORK/s.txt" "302"
@@ -334,24 +337,51 @@ expect "Ohne Empfängergruppe → Hinweis" "$WORK/r.html" "an Spielerinnen und/o
 echo "11. Mehrere Admins"
 curl -s -b "$AJAR" "$URL/admin/admins" > "$WORK/r.html"; T=$(csrf "$WORK/r.html")
 curl -s -b "$AJAR" -c "$AJAR" --data-urlencode "_csrf=$T" -d "action=invite&send_mail=1" --data-urlencode "name=Tom Assistent" \
-  --data-urlencode "email=tom@test.ch" --data-urlencode "phone=079 999 88 77" "$URL/admin/admins" > "$WORK/r.html"
+  --data-urlencode "email=tom@test.ch" --data-urlencode "phone=079 999 88 77" -d "role=trainer" "$URL/admin/admins" > "$WORK/r.html"
+expect "Rolle Trainer in der Team-Liste" "$WORK/r.html" '<span class="pill pb">Trainer</span>'
+expect "Rollen erklärt" "$WORK/r.html" "verwaltet die Spielerinnen"
 clean "Admins-Seite ohne Fehler" "$WORK/r.html"
 expect "Einladungslink angezeigt" "$WORK/r.html" "Einladungslink für Tom Assistent"
 snap "12-admin-admins" "$WORK/r.html"
 INV=$(grep -o 'admin/einladung/[a-f0-9]\{48\}' "$WORK/r.html" | head -1)
 [ "$(q "SELECT COUNT(*) FROM kd_mail_log WHERE to_email = 'tom@test.ch'")" = "1" ] && ok "Einladung per E-Mail" || fail "Einladungs-E-Mail fehlt"
 curl -s -b "$AJAR" -c "$AJAR" --data-urlencode "_csrf=$T" -d "action=invite" --data-urlencode "name=Doppelt" --data-urlencode "email=tom@test.ch" -L "$URL/admin/admins" > "$WORK/r.html"
-expect "Doppelte E-Mail abgelehnt" "$WORK/r.html" "gibt es schon einen Admin"
+expect "Doppelte E-Mail abgelehnt" "$WORK/r.html" "gibt es schon jemanden im Team"
 TJAR="$WORK/tom.txt"
 curl -s -c "$TJAR" -b "$TJAR" -d "password=kurz&password2=kurz" "$URL/$INV" > "$WORK/r.html"
 expect "Zu kurzes Passwort abgelehnt" "$WORK/r.html" "10 Zeichen"
 curl -s -c "$TJAR" -b "$TJAR" -L -d "password=tompasswort123&password2=tompasswort123" "$URL/$INV" > "$WORK/r.html"
-expect "Neuer Admin angemeldet" "$WORK/r.html" "Willkommen im Trainerteam, Tom Assistent"
+expect "Neuer Trainer angemeldet" "$WORK/r.html" "Willkommen im Trainerteam, Tom Assistent"
+expect "Kopfzeile zeigt Rolle Trainer" "$WORK/r.html" "Trainer · Konditionstraining"
+refuse "Trainer sieht keinen Menüpunkt Team" "$WORK/r.html" '>Team</a>'
+refuse "Trainer sieht keinen Menüpunkt Sicherungen" "$WORK/r.html" '>Sicherungen</a>'
+code -b "$TJAR" "$URL/admin/spielerinnen" > "$WORK/s.txt"; expect "Trainer verwaltet Spielerinnen" "$WORK/s.txt" "200"
+code -b "$TJAR" "$URL/admin/import" > "$WORK/s.txt"; expect "Trainer darf Excel importieren" "$WORK/s.txt" "200"
+code -b "$TJAR" "$URL/admin/laeufe" > "$WORK/s.txt"; expect "Trainer sieht Läufe" "$WORK/s.txt" "200"
+code -b "$TJAR" "$URL/admin/admins" > "$WORK/s.txt"; expect "Trainer kann kein Team verwalten" "$WORK/s.txt" "403"
+code -b "$TJAR" "$URL/admin/sicherungen" > "$WORK/s.txt"; expect "Trainer kann keine Sicherungen öffnen" "$WORK/s.txt" "403"
+code -b "$TJAR" "$URL/admin/sicherung.json" > "$WORK/s.txt"; expect "Trainer kann keinen Datenexport laden" "$WORK/s.txt" "403"
+curl -s -b "$TJAR" "$URL/admin/einstellungen" > "$WORK/r.html"
+expect "Trainer hat «Mein Konto»" "$WORK/r.html" "Mein Konto"
+refuse "Trainer kann Mannschaftsname nicht ändern" "$WORK/r.html" 'name="team"'
+curl -s -b "$TJAR" "$URL/admin/spielerin/neu" > "$WORK/r.html"; TT=$(csrf "$WORK/r.html")
+curl -s -b "$TJAR" -c "$TJAR" -L --data-urlencode "_csrf=$TT" -d "action=save" --data-urlencode "first_name=Zoe" --data-urlencode "last_name=Trainerin-Test" "$URL/admin/spielerin/neu" > "$WORK/r.html"
+expect "Trainer legt Spielerin an" "$WORK/r.html" "Zoe ist angelegt"
+curl -s -b "$TJAR" -c "$TJAR" -L --data-urlencode "_csrf=$TT" -d "action=team" --data-urlencode "team=Gehackt" "$URL/admin/einstellungen" > "$WORK/r.html"
+expect "Trainer: Mannschaftsname geschützt" "$WORK/r.html" "Das kann nur ein Admin"
+[ "$(q "SELECT value FROM kd_settings WHERE name = 'kd_team_name'")" = "FC Test Girls" ] && ok "Mannschaftsname unverändert" || fail "Trainer konnte Mannschaftsname ändern"
 curl -s "$URL/$INV" > "$WORK/r.html"
 expect "Einladungslink nur einmal gültig" "$WORK/r.html" "nicht mehr gültig"
 TOM=$(q "SELECT id FROM kd_admins WHERE email = 'tom@test.ch'"); ME=$(q "SELECT id FROM kd_admins WHERE email = 'sandra@test.ch'")
 curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=delete&id=$ME" "$URL/admin/admins" > "$WORK/r.html"
 expect "Sich selbst entfernen verhindert" "$WORK/r.html" "nicht selbst entfernen"
+curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=make_trainer&id=$ME" "$URL/admin/admins" > "$WORK/r.html"
+expect "Eigene Rolle nicht änderbar" "$WORK/r.html" "eigene Rolle nicht ändern"
+curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=make_admin&id=$TOM" "$URL/admin/admins" > "$WORK/r.html"
+expect "Trainer zum Admin gemacht" "$WORK/r.html" "Tom Assistent ist jetzt Admin"
+code -b "$TJAR" "$URL/admin/sicherungen" > "$WORK/s.txt"; expect "Neue Rolle wirkt sofort" "$WORK/s.txt" "200"
+curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=make_trainer&id=$TOM" "$URL/admin/admins" > "$WORK/r.html"
+expect "Zurück zum Trainer" "$WORK/r.html" "Tom Assistent ist jetzt Trainer"
 curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=deactivate&id=$TOM" "$URL/admin/admins" > "$WORK/r.html"
 expect "Admin deaktiviert" "$WORK/r.html" "Tom Assistent ist deaktiviert"
 code -b "$TJAR" "$URL/admin" > "$WORK/s.txt"; expect "Deaktivierter Admin sofort abgemeldet" "$WORK/s.txt" "302"

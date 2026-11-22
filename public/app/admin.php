@@ -751,7 +751,7 @@ function kd_page_admin_infos(): never
 
 function kd_page_admin_admins(): never
 {
-    $me = kd_require_admin();
+    $me = kd_require_main_admin();
     $inviteLink = '';
     $invited = null;
     if (is_post()) {
@@ -762,15 +762,16 @@ function kd_page_admin_admins(): never
             $name = trim(input('name'));
             $email = mb_strtolower(trim(input('email')));
             $phone = mb_substr(trim(input('phone')), 0, 40);
+            $role = isset(KD_ROLES[input('role')]) ? input('role') : 'trainer';
             if ($name === '' || mb_strlen($name) > 120 || !valid_email($email)) {
                 kd_flash('error', 'Bitte Name und eine gültige E-Mail-Adresse angeben.');
                 kd_redirect('admin/admins');
             }
             if (db_val('SELECT COUNT(*) FROM kd_admins WHERE email = ?', [$email])) {
-                kd_flash('error', 'Mit dieser E-Mail gibt es schon einen Admin.');
+                kd_flash('error', 'Mit dieser E-Mail gibt es schon jemanden im Team.');
                 kd_redirect('admin/admins');
             }
-            $newId = db_insert('kd_admins', ['name' => $name, 'email' => $email, 'phone' => $phone ?: null, 'active' => 1, 'created_at' => now()]);
+            $newId = db_insert('kd_admins', ['name' => $name, 'email' => $email, 'phone' => $phone ?: null, 'role' => $role, 'active' => 1, 'created_at' => now()]);
             $target = db_one('SELECT * FROM kd_admins WHERE id = ?', [$newId]);
             $action = 'reinvite';
         }
@@ -780,15 +781,23 @@ function kd_page_admin_admins(): never
             $inviteLink = kd_abs_url('admin/einladung/' . $token);
             $invited = $target;
             if (isset($_POST['send_mail'])) {
-                $ok = kd_send_mail($target['email'], 'Einladung: Admin für ' . kd_team(), "Hallo {$target['name']}\n\n{$me['name']} hat dich als Admin für das Konditionstraining von "
+                $roleName = KD_ROLES[kd_role($target)];
+                $ok = kd_send_mail($target['email'], "Einladung: $roleName für " . kd_team(), "Hallo {$target['name']}\n\n{$me['name']} hat dich als $roleName für das Konditionstraining von "
                     . kd_team() . " eingeladen.\n\nLege hier dein Passwort fest (Link " . KD_INVITE_DAYS . " Tage gültig):\n$inviteLink\n\nSportliche Grüsse\n{$me['name']}", $me);
                 kd_flash($ok ? 'ok' : 'error', $ok ? 'Einladung an ' . $target['email'] . ' gesendet.' : 'Die E-Mail konnte nicht gesendet werden – bitte den Link unten selbst weitergeben.');
             }
-        } elseif ($target && in_array($action, ['deactivate', 'delete'], true)) {
-            $others = (int) db_val('SELECT COUNT(*) FROM kd_admins WHERE active = 1 AND password_hash IS NOT NULL AND id <> ?', [$target['id']]);
+        } elseif ($target && in_array($action, ['deactivate', 'delete', 'make_trainer', 'make_admin'], true)) {
+            $otherAdmins = (int) db_val("SELECT COUNT(*) FROM kd_admins WHERE active = 1 AND password_hash IS NOT NULL AND role = 'admin' AND id <> ?", [$target['id']]);
             if ((int) $target['id'] === (int) $me['id']) {
-                kd_flash('error', 'Du kannst dich nicht selbst entfernen.');
-            } elseif ($others < 1) {
+                kd_flash('error', 'Du kannst deine eigene Rolle nicht ändern und dich nicht selbst entfernen.');
+            } elseif ($action === 'make_admin' || $action === 'make_trainer') {
+                if ($action === 'make_trainer' && kd_is_main_admin($target) && $otherAdmins < 1) {
+                    kd_flash('error', 'Es muss mindestens ein Admin bleiben.');
+                } else {
+                    db_update('kd_admins', ['role' => $action === 'make_admin' ? 'admin' : 'trainer'], 'id = ?', [$target['id']]);
+                    kd_flash('ok', $target['name'] . ' ist jetzt ' . ($action === 'make_admin' ? 'Admin' : 'Trainer') . '.');
+                }
+            } elseif (kd_is_main_admin($target) && $otherAdmins < 1) {
                 kd_flash('error', 'Es muss mindestens ein Admin mit Passwort bleiben.');
             } else {
                 db_query("DELETE FROM kd_sessions WHERE kind = 'admin' AND ref_id = ?", [$target['id']]);
@@ -805,30 +814,37 @@ function kd_page_admin_admins(): never
     }
     $rows = '';
     foreach (db_all('SELECT * FROM kd_admins ORDER BY name') as $a) {
+        $roleBadge = '<span class="pill ' . (kd_is_main_admin($a) ? 'best' : 'pb') . '">' . e(KD_ROLES[kd_role($a)]) . '</span>';
         $state = !$a['active'] ? '<span class="pill off">inaktiv</span>' : (!$a['password_hash'] ? '<span class="pill mid">eingeladen</span>' : '<span class="pill pb">aktiv</span>');
         $btn = fn(string $action, string $label, string $class, string $confirm = '') => '<form method="post" class="inline">' . kd_csrf_field() . '<input type="hidden" name="id" value="' . (int) $a['id'] . '">'
             . ($action === 'reinvite' ? '<input type="hidden" name="send_mail" value="1">' : '')
             . '<button class="' . $class . '" name="action" value="' . $action . '" type="submit"' . ($confirm ? ' onclick="return confirm(\'' . e($confirm) . '\')"' : '') . '>' . e($label) . '</button></form>';
         $actions = (int) $a['id'] === (int) $me['id'] ? '<span class="muted">das bist du</span>'
             : $btn('reinvite', $a['password_hash'] ? 'Neues Passwort per Link' : 'Einladung erneut senden', 'btn btn-small btn-ghost')
+                . (kd_is_main_admin($a) ? $btn('make_trainer', 'Zum Trainer machen', 'btn btn-small btn-ghost') : $btn('make_admin', 'Zum Admin machen', 'btn btn-small btn-ghost', $a['name'] . ' zum Admin machen? Admins dürfen alles, auch das Team und die Sicherungen verwalten.'))
                 . ($a['active'] ? $btn('deactivate', 'Deaktivieren', 'btn btn-small btn-ghost', $a['name'] . ' deaktivieren?') : $btn('activate', 'Aktivieren', 'btn btn-small'))
-                . $btn('delete', 'Entfernen', 'btn btn-small btn-danger', $a['name'] . ' als Admin entfernen?');
-        $rows .= '<tr><td><strong>' . e($a['name']) . '</strong><div class="sub">' . e($a['email']) . ($a['phone'] ? ' · ' . e($a['phone']) : '') . '</div></td><td>' . $state . '</td>'
+                . $btn('delete', 'Entfernen', 'btn btn-small btn-danger', $a['name'] . ' aus dem Team entfernen?');
+        $rows .= '<tr><td><strong>' . e($a['name']) . '</strong><div class="sub">' . e($a['email']) . ($a['phone'] ? ' · ' . e($a['phone']) : '') . '</div></td><td>' . $roleBadge . '</td><td>' . $state . '</td>'
             . '<td class="nowrap">' . ($a['last_login_at'] ? e(kd_date(substr($a['last_login_at'], 0, 10))) : '<span class="muted">–</span>') . '</td><td><div class="row-actions">' . $actions . '</div></td></tr>';
     }
     $inviteBox = $invited ? '<section class="card highlight"><h2>Einladungslink für ' . e($invited['name']) . '</h2>'
         . '<p>Gültig ' . KD_INVITE_DAYS . ' Tage. Damit legt ' . e($invited['name']) . ' das eigene Passwort fest.</p>' . kd_copy_field('invite_link', $inviteLink, 'Einladungslink')
-        . '<div class="row-actions mt">' . kd_wa_button($invited['phone'], 'Hallo ' . $invited['name'] . ', du bist jetzt Admin für ' . kd_team() . '. Lege hier dein Passwort fest: ' . $inviteLink, 'Per WhatsApp senden') . '</div></section>' : '';
-    $body = kd_head('Admin', 'Admins') . $inviteBox
-        . '<section class="card"><div class="table-wrap"><table><thead><tr><th>Admin</th><th>Status</th><th>Letzte Anmeldung</th><th></th></tr></thead><tbody>' . $rows . '</tbody></table></div></section>'
-        . '<section class="card"><h2>Admin einladen</h2><p class="hint">Admins sehen alle Spielerinnen, Läufe und Kontaktdaten. Lade nur Personen aus dem Trainerteam ein.</p>'
+        . '<div class="row-actions mt">' . kd_wa_button($invited['phone'], 'Hallo ' . $invited['name'] . ', du bist jetzt ' . KD_ROLES[kd_role($invited)] . ' für ' . kd_team() . '. Lege hier dein Passwort fest: ' . $inviteLink, 'Per WhatsApp senden') . '</div></section>' : '';
+    $body = kd_head('Admin', 'Team') . $inviteBox
+        . '<section class="card"><h2>Rollen</h2><ul class="roles">'
+        . '<li><span class="pill best">Admin</span> darf alles: Team (Trainer hinzufügen), Sicherungen, Einstellungen der Mannschaft – und alles, was Trainer dürfen.</li>'
+        . '<li><span class="pill pb">Trainer</span> verwaltet die Spielerinnen (anlegen, bearbeiten, Links senden, Excel-Import), Läufe und Feedback, Nachrichten und Infos.</li>'
+        . '<li><span class="pill">Spielerin</span> trägt über ihren persönlichen Link Läufe ein und sieht nur ihren eigenen Bereich und die Infos.</li></ul></section>'
+        . '<section class="card"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Rolle</th><th>Status</th><th>Letzte Anmeldung</th><th></th></tr></thead><tbody>' . $rows . '</tbody></table></div></section>'
+        . '<section class="card"><h2>Trainer hinzufügen</h2><p class="hint">Trainer sehen alle Spielerinnen, Läufe und Kontaktdaten. Lade nur Personen aus dem Trainerteam ein.</p>'
         . '<form method="post" action="' . e(kd_url('admin/admins')) . '" class="stack">' . kd_csrf_field() . '<input type="hidden" name="action" value="invite">'
         . '<div class="grid-3"><div class="field"><label for="a_name">Name</label><input id="a_name" name="name" type="text" maxlength="120" required></div>'
         . '<div class="field"><label for="a_email">E-Mail</label><input id="a_email" name="email" type="email" required></div>'
         . '<div class="field"><label for="a_phone">Handy <span class="muted">(freiwillig)</span></label><input id="a_phone" name="phone" type="tel" maxlength="40"></div></div>'
+        . '<div class="field date-narrow"><label for="a_role">Rolle</label><select id="a_role" name="role"><option value="trainer" selected>Trainer</option><option value="admin">Admin</option></select></div>'
         . '<label class="check"><input type="checkbox" name="send_mail" checked> Einladung gleich per E-Mail senden</label>'
         . '<button class="btn" type="submit">Einladen</button></form></section>' . kd_copy_script();
-    kd_page('Admins', $body);
+    kd_page('Team', $body);
 }
 
 // ---- Einstellungen und Sicherung -----------------------------------------
@@ -839,7 +855,9 @@ function kd_page_admin_settings(): never
     if (is_post()) {
         kd_csrf_check();
         $action = (string) ($_POST['action'] ?? '');
-        if ($action === 'team') {
+        if (in_array($action, ['team', 'logout_players'], true) && !kd_is_main_admin($me)) {
+            kd_flash('error', 'Das kann nur ein Admin.');
+        } elseif ($action === 'team') {
             $team = trim(input('team'));
             if ($team === '' || mb_strlen($team) > 80) {
                 kd_flash('error', 'Bitte den Namen der Mannschaft angeben (höchstens 80 Zeichen).');
@@ -875,10 +893,11 @@ function kd_page_admin_settings(): never
         }
         kd_redirect('admin/einstellungen');
     }
-    $body = kd_head('Admin', 'Einstellungen')
-        . '<section class="card"><h2>Mannschaft</h2><form method="post" class="stack">' . kd_csrf_field() . '<input type="hidden" name="action" value="team">'
+    $isAdmin = kd_is_main_admin($me);
+    $body = kd_head(KD_ROLES[kd_role($me)], $isAdmin ? 'Einstellungen' : 'Mein Konto')
+        . ($isAdmin ? '<section class="card"><h2>Mannschaft</h2><form method="post" class="stack">' . kd_csrf_field() . '<input type="hidden" name="action" value="team">'
         . '<div class="field"><label for="team">Name der Mannschaft</label><input id="team" name="team" type="text" maxlength="80" required value="' . e(setting('kd_team_name')) . '"></div>'
-        . '<button class="btn" type="submit">Speichern</button></form></section>'
+        . '<button class="btn" type="submit">Speichern</button></form></section>' : '')
         . '<section class="card"><h2>Mein Profil</h2><form method="post" class="stack">' . kd_csrf_field() . '<input type="hidden" name="action" value="profile">'
         . '<div class="grid-2"><div class="field"><label for="p_name">Name</label><input id="p_name" name="name" type="text" maxlength="120" required value="' . e($me['name']) . '"></div>'
         . '<div class="field"><label for="p_phone">Handy</label><input id="p_phone" name="phone" type="tel" maxlength="40" value="' . e((string) $me['phone']) . '"></div></div>'
@@ -888,18 +907,18 @@ function kd_page_admin_settings(): never
         . '<div class="grid-2"><div class="field"><label for="new_password">Neues Passwort</label><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="10" required></div>'
         . '<div class="field"><label for="new_password2">Wiederholen</label><input id="new_password2" name="new_password2" type="password" autocomplete="new-password" minlength="10" required></div></div>'
         . '<button class="btn" type="submit">Passwort ändern</button></form></section>'
-        . '<section class="card"><h2>Sicherheit &amp; Sicherung</h2>'
+        . (!$isAdmin ? '' : '<section class="card"><h2>Sicherheit &amp; Sicherung</h2>'
         . '<p>Die App sichert jeden Tag automatisch alle Daten auf dem Server. Unter «Sicherungen» siehst du alle Sicherungen und kannst sie herunterladen oder wiederherstellen.</p>'
         . '<div class="row-actions"><a class="btn" href="' . e(kd_url('admin/sicherungen')) . '">Zu den Sicherungen</a>'
         . '<a class="btn btn-ghost" href="' . e(kd_url('admin/sicherung.json')) . '">Daten als JSON (ohne Passwörter)</a>'
         . '<form method="post" class="inline">' . kd_csrf_field() . '<button class="btn btn-ghost" name="action" value="logout_players" type="submit" onclick="return confirm(\'Alle Spielerinnen abmelden?\')">Alle Spielerinnen abmelden</button></form></div>'
-        . '<p class="hint mt">Wenn ein Handy verloren geht: bei der Spielerin «Neuen Link erstellen». Wenn ein Admin das Team verlässt: unter «Admins» deaktivieren.</p></section>';
-    kd_page('Einstellungen', $body);
+        . '<p class="hint mt">Wenn ein Handy verloren geht: bei der Spielerin «Neuen Link erstellen». Wenn jemand das Trainerteam verlässt: unter «Team» deaktivieren.</p></section>');
+    kd_page($isAdmin ? 'Einstellungen' : 'Mein Konto', $body);
 }
 
 function kd_admin_backup(): never
 {
-    $me = kd_require_admin();
+    $me = kd_require_main_admin();
     $data = ['created_at' => now(), 'created_by' => $me['email'], 'team' => kd_team(), 'tables' => []];
     foreach (['kd_players', 'kd_runs', 'kd_infos'] as $t) {
         $data['tables'][$t] = db_all("SELECT * FROM $t");

@@ -158,7 +158,7 @@ function kd_cron_key(): string
 
 function kd_page_admin_backups(): never
 {
-    kd_require_admin();
+    kd_require_main_admin();
     if (is_post()) {
         kd_csrf_check();
         $action = (string) ($_POST['action'] ?? '');
@@ -225,7 +225,7 @@ function kd_page_admin_backups(): never
 
 function kd_admin_backup_download(): never
 {
-    kd_require_admin();
+    kd_require_main_admin();
     $name = (string) ($_GET['name'] ?? '');
     $path = kd_backup_dir() . '/' . $name;
     if (!preg_match(KD_BACKUP_NAME, $name) || !is_file($path)) {

@@ -8,7 +8,9 @@ declare(strict_types=1);
 
 use PHPMailer\PHPMailer\PHPMailer;
 
-const KD_SCHEMA_VERSION = 3;
+const KD_SCHEMA_VERSION = 4;
+/** Rollen im Trainerteam (Spielerinnen sind eine eigene Rolle mit persönlichem Link). */
+const KD_ROLES = ['admin' => 'Admin', 'trainer' => 'Trainer'];
 const KD_COOKIE = 'kond';
 const KD_PLAYER_DAYS = 180;        // Spielerinnen bleiben ein halbes Jahr angemeldet
 const KD_ADMIN_IDLE = 28800;       // Admins: 8 Stunden Inaktivität
@@ -64,7 +66,7 @@ function kd_migrate(): void
         'kd_settings' => "name VARCHAR(100) NOT NULL PRIMARY KEY, value $text",
         'kd_mail_log' => "id $id, to_email VARCHAR(190) NOT NULL, subject VARCHAR(255) NOT NULL, status VARCHAR(30) NOT NULL, error VARCHAR(500) NULL, created_at VARCHAR(19) NOT NULL",
         'kd_admins' => "id $id, name VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL UNIQUE, phone VARCHAR(40) NULL,
-            password_hash VARCHAR(255) NULL, invite_hash VARCHAR(64) NULL, invite_expires VARCHAR(19) NULL, active INT NOT NULL DEFAULT 1,
+            password_hash VARCHAR(255) NULL, invite_hash VARCHAR(64) NULL, invite_expires VARCHAR(19) NULL, role VARCHAR(20) NOT NULL DEFAULT 'admin', active INT NOT NULL DEFAULT 1,
             last_login_at VARCHAR(19) NULL, created_at VARCHAR(19) NOT NULL",
         'kd_players' => "id $id, first_name VARCHAR(60) NOT NULL, last_name VARCHAR(60) NOT NULL, email VARCHAR(190) NULL, phone VARCHAR(40) NULL,
             birthday VARCHAR(10) NULL, access_token VARCHAR(64) NOT NULL, emergency_name VARCHAR(120) NULL, emergency_relation VARCHAR(60) NULL,
@@ -80,10 +82,24 @@ function kd_migrate(): void
     foreach ($tables as $table => $cols) {
         db()->exec("CREATE TABLE IF NOT EXISTS $table ($cols)$suffix");
     }
+    foreach (['ALTER TABLE kd_players ADD COLUMN infos_seen_at VARCHAR(19) NULL', // ab Version 2: gelesene Infos
+        "ALTER TABLE kd_admins ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'admin'"] as $alter) { // ab Version 4: Rollen (bisherige = Admin)
+        try {
+            db()->exec($alter);
+        } catch (PDOException) {
+            // existiert bereits
+        }
+    }
+    // Einstellungen der früheren Version (in der Tabelle «settings» der Website) einmalig übernehmen, z.B. Mannschaftsname
     try {
-        db()->exec('ALTER TABLE kd_players ADD COLUMN infos_seen_at VARCHAR(19) NULL'); // ab Version 2: gelesene Infos
+        foreach (db_all("SELECT name, value FROM settings WHERE name LIKE 'kd%'") as $old) {
+            if (str_starts_with($old['name'], 'kd_') && $old['name'] !== 'kd_schema_version' && !db_val('SELECT COUNT(*) FROM kd_settings WHERE name = ?', [$old['name']])) {
+                db_insert('kd_settings', ['name' => $old['name'], 'value' => (string) $old['value']]);
+            }
+        }
+        setting('__reset');
     } catch (PDOException) {
-        // existiert bereits
+        // keine Website-Einstellungen vorhanden
     }
     foreach (['kd_runs' => 'player_id', 'kd_sessions' => 'token_hash', 'kd_attempts' => 'ip', 'kd_players' => 'access_token'] as $table => $col) {
         try {
@@ -186,9 +202,33 @@ function kd_require_player(): array
     return kd_player() ?? kd_redirect('');
 }
 
+/** Trainerteam (Admin oder Trainer) – sonst zur Anmeldung. */
 function kd_require_admin(): array
 {
     return kd_admin() ?? kd_redirect('admin/anmelden');
+}
+
+function kd_role(?array $who): string
+{
+    return isset(KD_ROLES[$who['role'] ?? '']) ? (string) $who['role'] : 'admin';
+}
+
+function kd_is_main_admin(?array $who = null): bool
+{
+    $who ??= kd_admin();
+    return $who !== null && kd_role($who) === 'admin';
+}
+
+/** Nur für die Rolle Admin (Team, Sicherungen, Mannschafts-Einstellungen). */
+function kd_require_main_admin(): array
+{
+    $me = kd_require_admin();
+    if (!kd_is_main_admin($me)) {
+        kd_page('Nur für Admins', '<section class="card narrow"><p class="eyebrow">Kein Zugriff</p><h1>Nur für Admins</h1>'
+            . '<p class="lead">Diese Seite kann nur ein Admin öffnen. Als Trainer verwaltest du Spielerinnen, Läufe, Nachrichten und Infos.</p>'
+            . '<p><a class="btn" href="' . e(kd_url('admin')) . '">Zur Übersicht</a></p></section>', 403);
+    }
+    return $me;
 }
 
 function kd_csrf(): string
@@ -735,8 +775,9 @@ function kd_page(string $title, string $body, int $status = 200): never
     $link = fn(string $path, string $label) => '<a href="' . e(kd_url($path)) . '">' . e($label) . '</a>';
     if (kd_admin()) {
         $nav = $link('admin', 'Übersicht') . $link('admin/spielerinnen', 'Spielerinnen') . $link('admin/laeufe', 'Läufe')
-            . $link('admin/nachrichten', 'Nachrichten') . $link('admin/infos', 'Infos') . $link('admin/admins', 'Admins')
-            . $link('admin/sicherungen', 'Sicherungen') . $link('admin/einstellungen', 'Einstellungen');
+            . $link('admin/nachrichten', 'Nachrichten') . $link('admin/infos', 'Infos')
+            . (kd_is_main_admin() ? $link('admin/admins', 'Team') . $link('admin/sicherungen', 'Sicherungen') . $link('admin/einstellungen', 'Einstellungen')
+                : $link('admin/einstellungen', 'Mein Konto'));
     } elseif ($player = kd_player()) {
         $unread = kd_unread_infos((int) $player['id']);
         $badge = $unread > 0 ? '<span class="badge" aria-label="' . $unread . ' neue Infos">' . ($unread > 9 ? '9+' : $unread) . '</span>' : '';
@@ -750,7 +791,7 @@ function kd_page(string $title, string $body, int $status = 200): never
         . '<meta name="robots" content="noindex,nofollow"><title>' . e($title) . ' · ' . e(kd_team()) . '</title>'
         . '<link rel="stylesheet" href="' . $css . '"></head><body>'
         . '<header class="top"><div class="wrap top-in"><a class="brand" href="' . e(kd_url(kd_admin() ? 'admin' : '')) . '"><span class="ball" aria-hidden="true"></span>'
-        . '<span><strong>' . e(kd_team()) . '</strong><small>' . (kd_admin() ? 'Admin · Konditionstraining' : 'Konditionstraining') . '</small></span></a>'
+        . '<span><strong>' . e(kd_team()) . '</strong><small>' . (kd_admin() ? e(KD_ROLES[kd_role(kd_admin())]) . ' · Konditionstraining' : 'Konditionstraining') . '</small></span></a>'
         . ($nav !== '' ? '<nav class="nav">' . $nav . '</nav>' : '') . '</div></header>'
         . '<main class="wrap main">' . kd_take_flash() . $body . '</main>' . ($dialog ?? '')
         . '<footer class="wrap foot"><span>Die Angaben sind nur für die jeweilige Spielerin und das Trainerteam sichtbar.</span>' . kd_version_html() . '</footer>'

@@ -62,3 +62,13 @@ Web-App unter **https://ki-smartwork.ch/app/fussballtraining/** (veröffentlicht
 - **Admin → Sicherungen**: Liste aller Sicherungen (Datum, Art, Grösse), «Jetzt sichern», Herunterladen, «Wiederherstellen» und «Sicherung hochladen und wiederherstellen».
 - **Wiederherstellen**: Vorher wird der aktuelle Stand automatisch gesichert («vor Wiederherstellung»). Es werden nur bekannte Tabellen und Spalten übernommen, alles in einer Transaktion (bei einem Fehler bleibt alles unverändert). Danach melden sich alle neu an.
 - Der automatische Test prüft tägliche Sicherung (nur eine pro Tag), Sperre vom Web, Download nur für Admins, Wiederherstellen (Läufe, Einstellungen und Admin-Passwort wieder da), Hochladen, falsche Dateien und Cron.
+
+## Schritt 4 – Rollen Admin, Trainer, Spielerinnen; Version 1.2.0 (22.11.2026)
+
+- **Admin** (Katharina): darf alles – Team verwalten (Trainer hinzufügen, Rolle ändern, deaktivieren, entfernen), Sicherungen, Einstellungen der Mannschaft, Datenexport – und alles, was Trainer dürfen.
+- **Trainer**: verwaltet die Spielerinnen (anlegen, bearbeiten, persönliche Links senden, Excel-Import, Pause, Notfallkontakt), Läufe mit Feedback und Notizen, Nachrichten an Spielerinnen und Eltern, Infos. Unter «Mein Konto» eigener Name, Handy, Passwort. Kein Zugriff auf Team, Sicherungen, Mannschaftsname und Datenexport (Seite «Nur für Admins»).
+- **Spielerinnen**: unverändert über den persönlichen Link, sehen nur ihren eigenen Bereich und die Infos.
+- Admin-Seite «Team» (vorher «Admins»): Einladen mit Rolle (Standard Trainer), «Zum Admin/Trainer machen». Es bleibt immer mindestens ein Admin; die eigene Rolle lässt sich nicht ändern.
+- Datenbank-Version 4: neue Spalte `kd_admins.role` (bisherige Konten = Admin).
+- **Übernahme alter Einstellungen**: Die frühere Version speicherte Mannschaftsname und weitere Werte in der Tabelle `settings` der Website. Beim Update werden fehlende Werte einmalig nach `kd_settings` übernommen (Mannschaftsname erscheint wieder).
+- Test um Rollen ergänzt (Trainer darf Spielerinnen/Import/Läufe, aber nicht Team/Sicherungen/Export/Mannschaftsname; Rollenwechsel wirkt sofort; Übernahme des Mannschaftsnamens).

@@ -264,3 +264,6 @@ details summary{cursor:pointer;font-size:14px;font-weight:650;color:var(--ink-2)
 }
 
 input[type=file]{font:400 15px var(--sans);color:var(--ink-2);max-width:100%}
+
+.roles{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.roles li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
