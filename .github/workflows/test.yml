@@ -1,0 +1,32 @@
+# Prüft die App bei jedem Push auf einen Arbeits-Branch (auf main läuft derselbe Test im Deploy).
+# Protokoll und Vorschau-Seiten werden immer in den Branch «testprotokoll» geschrieben.
+name: Test
+
+on:
+  push:
+    branches-ignore: [main, testprotokoll]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP-Syntax prüfen
+        run: find public -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: PHP-Bibliotheken installieren
+        run: composer install --no-dev --no-interaction --no-progress
+
+      - name: App testen
+        run: |
+          set -o pipefail
+          KD_VORSCHAU=vorschau bash tests/fussball.sh 2>&1 | tee testprotokoll.txt
+
+      - name: Testprotokoll und Vorschau speichern
+        if: always()
+        run: bash .github/testprotokoll.sh

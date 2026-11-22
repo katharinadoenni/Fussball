@@ -1,0 +1,71 @@
+# Lädt die App bei jeder Änderung auf main auf das Infomaniak-Webhosting hoch:
+#   public/  →  /sites/ki-smartwork.ch/fussball/   (öffentlich unter https://ki-smartwork.ch/app/fussballtraining/)
+#
+# Benötigte Repository-Secrets (Settings → Secrets and variables → Actions):
+#   FTP_USERNAME  – FTP-Nutzer aus dem Infomaniak Manager (Web Hosting → FTP / SSH)
+#   FTP_PASSWORD  – Passwort dieses FTP-Nutzers
+# Ohne diese Secrets wird nur getestet, nicht hochgeladen.
+# Auf dem Server angelegte Dateien (config.php, data/) werden nie überschrieben oder gelöscht.
+name: Deploy auf Infomaniak
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_FTP: ${{ secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP-Syntax prüfen
+        run: find public -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: PHP-Bibliotheken installieren
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - name: App testen
+        run: |
+          set -o pipefail
+          KD_VORSCHAU=vorschau bash tests/fussball.sh 2>&1 | tee testprotokoll.txt
+
+      - name: Version und Commit in die App schreiben
+        run: |
+          printf "<?php return ['version' => '%s', 'commit' => '%s', 'date' => '%s'];\n" \
+            "$(tr -cd '0-9.' < VERSION)" "${GITHUB_SHA::7}" "$(TZ=Europe/Zurich date +%Y-%m-%d)" > public/app/version.php
+          cat public/app/version.php
+
+      - name: Dateien per FTPS hochladen
+        if: env.HAS_FTP == 'true'
+        # v4.4.0, auf Commit fixiert
+        uses: SamKirkland/FTP-Deploy-Action@110f9186c050f71550953127052e77650219c287
+        with:
+          server: yk0bs8.ftp.infomaniak.com
+          protocol: ftps
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./public/
+          server-dir: /sites/ki-smartwork.ch/fussball/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            config.php
+            data/**
+
+      - name: Hinweis, falls FTP-Zugang fehlt
+        if: env.HAS_FTP != 'true'
+        run: echo "::warning::Nicht hochgeladen – im Repository fehlen die Secrets FTP_USERNAME und FTP_PASSWORD."
+
+      - name: Testprotokoll und Vorschau speichern
+        if: always()
+        run: bash .github/testprotokoll.sh

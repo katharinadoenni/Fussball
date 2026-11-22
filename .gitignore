@@ -1,0 +1,9 @@
+.DS_Store
+# Zugangsdaten, Laufzeitdaten und Bibliotheken – nie ins Repository
+public/config.php
+public/app/version.php
+public/app/vendor/
+public/data/*
+!public/data/.htaccess
+vorschau/
+testprotokoll/

@@ -1,0 +1,14 @@
+{
+    "name": "katharinadoenni/fussball",
+    "description": "Fussball-Konditionstraining (FC Wädenswil Juniorinnen) – Web-App für Spielerinnen und Trainerteam",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "phpmailer/phpmailer": "^6.9"
+    },
+    "config": {
+        "vendor-dir": "public/app/vendor",
+        "optimize-autoloader": true
+    }
+}
