@@ -162,13 +162,13 @@ run "$L" "$(d '-7 days')" 3000 13 50 "Gegenwind"
 run "$L" "$(d '-0 days')" 3000 14 05
 run "$L" "$(d '-3 days')" 400 1 25
 run "$L" "$(d '-1 days')" 3200 15 0
+expect "Beliebige Länge (3200 m)" "$WORK/r.html" "Gespeichert: 3’200 m in 15:00"
 curl -s -c "$L" -b "$L" -L --data-urlencode "_csrf=$P" -d "run_date_d=$(date -d '-2 days' +%-d)&run_date_m=$(date -d '-2 days' +%-m)&run_date_y=$(date -d '-2 days' +%Y)&distance_m=1000&minutes=4&seconds=10" "$URL/" > "$WORK/r.html"
 expect "Lauf mit Tag/Monat/Jahr gespeichert" "$WORK/r.html" "Gespeichert: 1’000 m in 4:10"
 curl -s -c "$L" -b "$L" -L --data-urlencode "_csrf=$P" -d "run_date_d=30&run_date_m=2&run_date_y=$(date +%Y)&distance_m=1000&minutes=4&seconds=10" "$URL/" > "$WORK/r.html"
 expect "30. Februar abgelehnt" "$WORK/r.html" "Bitte ein gültiges Datum wählen"
 curl -s -c "$L" -b "$L" -L --data-urlencode "_csrf=$P" -d "run_date_d=&run_date_m=$(date +%-m)&run_date_y=$(date +%Y)&distance_m=1000&minutes=4&seconds=10" "$URL/" > "$WORK/r.html"
 expect "Unvollständiges Datum abgelehnt" "$WORK/r.html" "Bitte ein gültiges Datum wählen"
-expect "Beliebige Länge (3200 m)" "$WORK/r.html" "Gespeichert: 3’200 m in 15:00"
 run "$L" "$(d '-0 days')" 3 14 0
 expect "Kilometer statt Meter erkannt" "$WORK/r.html" "nicht in Kilometern: 3 km = 3’000 m"
 run "$L" "$(d '-0 days')" 3.5 14 0
