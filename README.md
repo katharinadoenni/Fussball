@@ -27,7 +27,7 @@ VERSION            Versionsnummer (wird mit dem Commit in der App angezeigt)
 
 - Die öffentliche Adresse `/app/fussballtraining` leitet die Website ki-smartwork.ch (Repository `ki-smartwork.ch`, Datei `site/.htaccess`) auf den Ordner `/sites/ki-smartwork.ch/fussball/` um. Der übrige Ordner `/app/` der Website bleibt gesperrt.
 - **Konfiguration:** Ohne eigene `config.php` nutzt die App die Datenbank und das Postfach der Website auf demselben Server. Optional kann auf dem Server `fussball/config.php` angelegt werden (`db`, `smtp`, `base_url`) – sie liegt nie im Repository.
-- **Sicherung:** Die Tabellen `kd_…` liegen in der Datenbank der Website und sind in deren täglicher Sicherung enthalten. Zusätzlich gibt es im Admin-Bereich einen Download.
+- **Sicherung:** Die App sichert täglich selbst alle Daten nach `fussball/data/backups/` (letzte 30). Im Admin unter «Sicherungen»: anzeigen, herunterladen, wiederherstellen. Zusätzlich sind die Tabellen `kd_…` in der Sicherung der Website enthalten.
 
 ## Abläufe (GitHub Actions)
 

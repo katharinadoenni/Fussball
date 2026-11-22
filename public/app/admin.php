@@ -889,8 +889,9 @@ function kd_page_admin_settings(): never
         . '<div class="field"><label for="new_password2">Wiederholen</label><input id="new_password2" name="new_password2" type="password" autocomplete="new-password" minlength="10" required></div></div>'
         . '<button class="btn" type="submit">Passwort ändern</button></form></section>'
         . '<section class="card"><h2>Sicherheit &amp; Sicherung</h2>'
-        . '<p>Alle Daten (Spielerinnen, Läufe, Infos, Admins) sind in der täglichen automatischen Sicherung von ki-smartwork.ch enthalten. Zusätzlich kannst du hier jederzeit eine Sicherung herunterladen.</p>'
-        . '<div class="row-actions"><a class="btn btn-ghost" href="' . e(kd_url('admin/sicherung.json')) . '">Sicherung herunterladen (JSON)</a>'
+        . '<p>Die App sichert jeden Tag automatisch alle Daten auf dem Server. Unter «Sicherungen» siehst du alle Sicherungen und kannst sie herunterladen oder wiederherstellen.</p>'
+        . '<div class="row-actions"><a class="btn" href="' . e(kd_url('admin/sicherungen')) . '">Zu den Sicherungen</a>'
+        . '<a class="btn btn-ghost" href="' . e(kd_url('admin/sicherung.json')) . '">Daten als JSON (ohne Passwörter)</a>'
         . '<form method="post" class="inline">' . kd_csrf_field() . '<button class="btn btn-ghost" name="action" value="logout_players" type="submit" onclick="return confirm(\'Alle Spielerinnen abmelden?\')">Alle Spielerinnen abmelden</button></form></div>'
         . '<p class="hint mt">Wenn ein Handy verloren geht: bei der Spielerin «Neuen Link erstellen». Wenn ein Admin das Team verlässt: unter «Admins» deaktivieren.</p></section>';
     kd_page('Einstellungen', $body);

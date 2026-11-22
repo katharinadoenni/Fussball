@@ -25,12 +25,21 @@ require __DIR__ . '/app/lib.php';
 require __DIR__ . '/app/pages.php';
 require __DIR__ . '/app/admin.php';
 require __DIR__ . '/app/import.php';
+require __DIR__ . '/app/backup.php';
 
 if (!app_installed()) {
     http_response_code(503);
     exit('Noch nicht eingerichtet.');
 }
 kd_migrate();
+// Tägliche Sicherung beim ersten Aufruf des Tages (Fehler dürfen die App nie blockieren)
+if (kd_ready()) {
+    try {
+        kd_backup_daily();
+    } catch (Throwable $ex) {
+        app_log('error', 'Tägliche Sicherung: ' . $ex->getMessage());
+    }
+}
 
 // Sicherheits-Header: keine fremden Skripte, kein Einbetten in fremde Seiten, keine Suchmaschinen
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
@@ -57,6 +66,7 @@ if (!kd_ready() && $path !== '/einrichten' && !str_starts_with($path, '/admin/ei
 $admin = ['/admin' => 'kd_page_admin_overview', '/admin/spielerinnen' => 'kd_page_admin_players', '/admin/laeufe' => 'kd_page_admin_runs',
     '/admin/nachrichten' => 'kd_page_admin_messages', '/admin/infos' => 'kd_page_admin_infos', '/admin/admins' => 'kd_page_admin_admins',
     '/admin/einstellungen' => 'kd_page_admin_settings', '/admin/export.csv' => 'kd_admin_export', '/admin/sicherung.json' => 'kd_admin_backup',
+    '/admin/sicherungen' => 'kd_page_admin_backups', '/admin/sicherungen/datei' => 'kd_admin_backup_download',
     '/admin/import' => 'kd_page_admin_import', '/admin/import/vorlage.csv' => 'kd_admin_import_template'];
 
 switch (true) {
@@ -70,6 +80,8 @@ switch (true) {
         kd_page_infos();
     case $path === '/infos/gelesen':
         kd_infos_mark_read();
+    case $path === '/cron':
+        kd_cron();
     case $path === '/einrichten':
         kd_page_setup();
     case $path === '/admin/anmelden':

@@ -20,6 +20,7 @@ fi
 cleanup() {
   [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null || true
   rm -f "$APP/config.php"
+  rm -rf "$APP/data/backups" "$APP/data/logs"
 }
 trap cleanup EXIT
 
@@ -44,6 +45,7 @@ snap() { # snap <name> <datei> – speichert die Seite für die Vorschau, Links 
     -e 's#action="/app/fussballtraining/admin/anmelden"#action="06-admin-uebersicht.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin/(anmelden|abmelden)"#\1="05-admin-anmelden.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin/import[^"]*"#\1="15-admin-import.html"#g' \
+    -e 's#(href|action)="/app/fussballtraining/admin/sicherungen[^"]*"#\1="16-admin-sicherungen.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin/spielerin/[^"]*"#\1="08-admin-spielerin.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin/spielerinnen"#\1="07-admin-spielerinnen.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin/(laeufe|lauf/[0-9]+|export\.csv)[^"]*"#\1="09-admin-laeufe.html"#g' \
@@ -409,6 +411,54 @@ snap "15-admin-import" "$WORK/r.html"
 printf 'nur Text' > "$WORK/x.xls"
 curl -s -b "$AJAR" -c "$AJAR" -F "_csrf=$T" -F "action=preview" -F "datei=@$WORK/x.xls" "$URL/admin/import" > "$WORK/r.html"
 expect "Alte .xls-Datei: Hinweis" "$WORK/r.html" "als «Excel-Arbeitsmappe (.xlsx)»"
+
+echo "12c. Sicherungen (täglich, von Hand, wiederherstellen)"
+ls "$APP"/data/backups/sicherung-*-taeglich.zip > /dev/null 2>&1 && ok "Tägliche Sicherung automatisch erstellt" || fail "Keine tägliche Sicherung"
+[ "$(ls "$APP"/data/backups/sicherung-*-taeglich.zip | wc -l | tr -d ' ')" = "1" ] && ok "Nur eine tägliche Sicherung pro Tag" || fail "Mehrere tägliche Sicherungen"
+code "$URL/data/backups/$(basename "$(ls "$APP"/data/backups/sicherung-*-taeglich.zip | head -1)")" > "$WORK/s.txt"; expect "Sicherungen vom Web aus gesperrt" "$WORK/s.txt" "403"
+curl -s -b "$AJAR" "$URL/admin/sicherungen" > "$WORK/r.html"; T=$(csrf "$WORK/r.html")
+clean "Sicherungen-Seite ohne Fehler" "$WORK/r.html"
+expect "Tägliche Sicherung in der Liste" "$WORK/r.html" "täglich (automatisch)"
+RUNS=$(q "SELECT COUNT(*) FROM kd_runs"); PLAYERS=$(q "SELECT COUNT(*) FROM kd_players")
+curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=create" "$URL/admin/sicherungen" > "$WORK/r.html"
+expect "Sicherung von Hand erstellt" "$WORK/r.html" "Sicherung erstellt: sicherung-"
+snap "16-admin-sicherungen" "$WORK/r.html"
+BK=$(grep -o 'sicherung-[0-9]\{8\}-[0-9]\{6\}-manuell\.zip' "$WORK/r.html" | head -1)
+curl -s -b "$AJAR" "$URL/admin/sicherungen/datei?name=$BK" > "$WORK/bk.zip"
+unzip -p "$WORK/bk.zip" database.json > "$WORK/bk.json"
+expect "Download enthält alle Läufe" "$WORK/bk.json" '"kd_runs"'
+expect "Download enthält Einstellungen" "$WORK/bk.json" '"kd_team_name"'
+expect "Download enthält Admins (Fullbackup)" "$WORK/bk.json" '"sandra@test.ch"'
+code -b "$L" "$URL/admin/sicherungen/datei?name=$BK" > "$WORK/s.txt"; expect "Spielerin kann keine Sicherung laden" "$WORK/s.txt" "302"
+code -b "$AJAR" "$URL/admin/sicherungen/datei?name=../config.php" > "$WORK/s.txt"; expect "Kein Zugriff auf andere Dateien" "$WORK/s.txt" "302"
+# Daten ändern, dann wiederherstellen
+php -r "require '$APP/app/bootstrap.php'; db_query('DELETE FROM kd_runs'); db_query(\"UPDATE kd_settings SET value = 'Falscher Name' WHERE name = 'kd_team_name'\");"
+[ "$(q "SELECT COUNT(*) FROM kd_runs")" = "0" ] && ok "Läufe testweise gelöscht" || fail "Löschen hat nicht geklappt"
+sleep 1
+curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=restore" --data-urlencode "datei=$BK" "$URL/admin/sicherungen" > "$WORK/r.html"
+expect "Wiederhergestellt" "$WORK/r.html" "wiederhergestellt ($PLAYERS Spielerinnen, $RUNS Läufe)"
+expect "Danach neu anmelden" "$WORK/r.html" "Bitte neu anmelden"
+[ "$(q "SELECT COUNT(*) FROM kd_runs")" = "$RUNS" ] && ok "Alle Läufe wieder da" || fail "Läufe nicht wiederhergestellt"
+[ "$(q "SELECT value FROM kd_settings WHERE name = 'kd_team_name'")" = "FC Test Girls" ] && ok "Einstellungen wieder da" || fail "Einstellungen nicht wiederhergestellt"
+ls "$APP"/data/backups/sicherung-*-vorwiederherstellung.zip > /dev/null 2>&1 && ok "Vorheriger Stand automatisch gesichert" || fail "Keine Sicherheitskopie vor dem Wiederherstellen"
+code -b "$AJAR" "$URL/admin" > "$WORK/s.txt"; expect "Nach Wiederherstellen alle abgemeldet" "$WORK/s.txt" "302"
+curl -s -c "$AJAR" -b "$AJAR" -L -d "email=sandra@test.ch&password=trainerpasswort" "$URL/admin/anmelden" > "$WORK/r.html"
+expect "Admin-Passwort aus Sicherung funktioniert" "$WORK/r.html" "Spielerpause"
+T=$(csrf "$WORK/r.html")
+# Hochladen einer Sicherung
+curl -s -b "$AJAR" -c "$AJAR" -L -F "_csrf=$T" -F "action=upload" -F "datei=@$WORK/bk.zip" "$URL/admin/sicherungen" > "$WORK/r.html"
+expect "Hochgeladene Sicherung wiederhergestellt" "$WORK/r.html" "wiederhergestellt"
+curl -s -c "$AJAR" -b "$AJAR" -L -d "email=sandra@test.ch&password=trainerpasswort" "$URL/admin/anmelden" > "$WORK/r.html"; T=$(csrf "$WORK/r.html")
+printf 'kein zip' > "$WORK/falsch.zip"
+curl -s -b "$AJAR" -c "$AJAR" -L -F "_csrf=$T" -F "action=upload" -F "datei=@$WORK/falsch.zip" "$URL/admin/sicherungen" > "$WORK/r.html"
+expect "Falsche Datei abgelehnt" "$WORK/r.html" "keine gültige Sicherung"
+code -b "$AJAR" "$URL/admin" > "$WORK/s.txt"; expect "Falsche Datei ändert nichts (weiter angemeldet)" "$WORK/s.txt" "200"
+# Cron
+code "$URL/cron?schluessel=falsch" > "$WORK/s.txt"; expect "Cron mit falschem Schlüssel gesperrt" "$WORK/s.txt" "403"
+CK=$(q "SELECT value FROM kd_settings WHERE name = 'kd_cron_key'")
+curl -s "$URL/cron?schluessel=$CK" > "$WORK/s.txt"; expect "Cron mit richtigem Schlüssel" "$WORK/s.txt" "Heute bereits gesichert"
+# Spielerinnen müssen sich nach dem Wiederherstellen über ihren Link neu anmelden
+play "$L" "$(q "SELECT access_token FROM kd_players WHERE first_name = 'Lea'")"
 
 echo "13. Link erneuern, deaktivieren, löschen"
 curl -s -b "$AJAR" "$URL/admin/spielerin/$LEA" > "$WORK/r.html"; T=$(csrf "$WORK/r.html")

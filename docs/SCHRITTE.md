@@ -54,3 +54,11 @@ Web-App unter **https://ki-smartwork.ch/app/fussballtraining/** (veröffentlicht
 - *Testprotokoll*: nach jedem Lauf im Branch `testprotokoll` (inkl. Vorschau-Seiten mit Beispieldaten).
 
 **Sicherheit**: `config.php`, `version.php`, `app/` und `data/` sind vom Web aus gesperrt; Import nur für Admins, mit CSRF-Schutz und signierter Vorschau; XML wird ohne Netzwerkzugriff gelesen.
+
+## Schritt 3 – Tägliche Sicherungen durch die App, Version 1.1.0 (22.11.2026)
+
+- **Automatisch jeden Tag**: Beim ersten Aufruf der App am Tag sichert sie alle Daten (Spielerinnen, Läufe, Feedback, Infos, Admins, Einstellungen, E-Mail-Protokoll) als ZIP mit `database.json` auf dem Server in `fussball/data/backups/` (vom Web aus gesperrt, wird beim Hochladen nie überschrieben). Die letzten 30 Sicherungen bleiben erhalten.
+- **Zusätzlich per Cron** (freiwillig): Adresse `…/app/fussballtraining/cron?schluessel=…` (geheimer Schlüssel, steht im Admin unter «Sicherungen») im Infomaniak Manager unter «Cron-Aufgaben» täglich aufrufen lassen – dann wird auch an Tagen ohne Nutzung gesichert.
+- **Admin → Sicherungen**: Liste aller Sicherungen (Datum, Art, Grösse), «Jetzt sichern», Herunterladen, «Wiederherstellen» und «Sicherung hochladen und wiederherstellen».
+- **Wiederherstellen**: Vorher wird der aktuelle Stand automatisch gesichert («vor Wiederherstellung»). Es werden nur bekannte Tabellen und Spalten übernommen, alles in einer Transaktion (bei einem Fehler bleibt alles unverändert). Danach melden sich alle neu an.
+- Der automatische Test prüft tägliche Sicherung (nur eine pro Tag), Sperre vom Web, Download nur für Admins, Wiederherstellen (Läufe, Einstellungen und Admin-Passwort wieder da), Hochladen, falsche Dateien und Cron.

@@ -735,7 +735,8 @@ function kd_page(string $title, string $body, int $status = 200): never
     $link = fn(string $path, string $label) => '<a href="' . e(kd_url($path)) . '">' . e($label) . '</a>';
     if (kd_admin()) {
         $nav = $link('admin', 'Übersicht') . $link('admin/spielerinnen', 'Spielerinnen') . $link('admin/laeufe', 'Läufe')
-            . $link('admin/nachrichten', 'Nachrichten') . $link('admin/infos', 'Infos') . $link('admin/admins', 'Admins') . $link('admin/einstellungen', 'Einstellungen');
+            . $link('admin/nachrichten', 'Nachrichten') . $link('admin/infos', 'Infos') . $link('admin/admins', 'Admins')
+            . $link('admin/sicherungen', 'Sicherungen') . $link('admin/einstellungen', 'Einstellungen');
     } elseif ($player = kd_player()) {
         $unread = kd_unread_infos((int) $player['id']);
         $badge = $unread > 0 ? '<span class="badge" aria-label="' . $unread . ' neue Infos">' . ($unread > 9 ? '9+' : $unread) . '</span>' : '';
