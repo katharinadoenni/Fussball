@@ -72,3 +72,11 @@ Web-App unter **https://ki-smartwork.ch/app/fussballtraining/** (veröffentlicht
 - Datenbank-Version 4: neue Spalte `kd_admins.role` (bisherige Konten = Admin).
 - **Übernahme alter Einstellungen**: Die frühere Version speicherte Mannschaftsname und weitere Werte in der Tabelle `settings` der Website. Beim Update werden fehlende Werte einmalig nach `kd_settings` übernommen (Mannschaftsname erscheint wieder).
 - Test um Rollen ergänzt (Trainer darf Spielerinnen/Import/Läufe, aber nicht Team/Sicherungen/Export/Mannschaftsname; Rollenwechsel wirkt sofort; Übernahme des Mannschaftsnamens).
+
+## Schritt 5 – App aufs Handy: Symbol, Anleitung, Anmelden mit eingefügtem Link; Version 1.3.0 (23.11.2026)
+
+- **App-Symbol** in den Vereinsfarben (dunkelblauer Grund, blauer Ball mit gelben Ringen – eigenes Motiv, nicht das Vereinswappen): `public/assets/icon-180.png` (iPhone), `icon-192.png`/`icon-512.png` (Android), `icon-32.png`/`icon.svg` (Browser).
+- **Web-App-Manifest** `…/manifest.webmanifest`: Name, Farben, Symbol, Anzeige als eigenständige App. Die Startadresse ist persönlich: Spielerinnen starten mit ihrem persönlichen Link (bleiben so auch in der Handy-App angemeldet), das Trainerteam im Admin.
+- **Anleitung** `…/anleitung` (öffentlich, ohne Anmeldung) für iPhone (Safari) und Android (Chrome, Samsung Internet), mit Tipps.
+- **Hinweise**: auf dem Handy erscheint oben «Tipp: Speichere die App …» (nur solange die App nicht vom Startbildschirm geöffnet ist, wegklickbar); Karte «App auf dem Handy speichern» bei den Infos und im Infos-Popup; Link zur Anleitung in der E-Mail/WhatsApp mit dem persönlichen Link und in der Trainer-Einladung.
+- **Link einfügen**: Auf der Startseite kann der persönliche Link eingefügt werden (z.B. wenn die Handy-App einmal abgemeldet ist).

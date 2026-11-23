@@ -14,7 +14,66 @@ function kd_page_start(): never
     }
     kd_page('Willkommen', '<section class="card narrow"><p class="eyebrow">Willkommen</p><h1>Bitte deinen persönlichen Link öffnen</h1>'
         . '<p class="lead">Jede Spielerin bekommt vom Trainerteam einen eigenen Link per E-Mail oder WhatsApp. Öffne ihn auf deinem Handy – danach bleibst du angemeldet.</p>'
-        . '<p class="hint">Trainerteam: <a href="' . e(kd_url('admin/anmelden')) . '">zur Anmeldung</a></p></section>');
+        . '<form method="post" action="' . e(kd_url('zugang')) . '" class="stack mt"><div class="field"><label for="link">Oder den Link hier einfügen</label>'
+        . '<input id="link" name="link" type="url" inputmode="url" autocomplete="off" placeholder="https://ki-smartwork.ch/app/fussballtraining/zugang/…" required></div>'
+        . '<button class="btn" type="submit">Anmelden</button></form>'
+        . '<p class="hint mt"><a href="' . e(kd_url('anleitung')) . '">App auf dem Handy speichern – so geht’s</a> · Trainerteam: <a href="' . e(kd_url('admin/anmelden')) . '">zur Anmeldung</a></p></section>');
+}
+
+/** Persönlichen Link einfügen (z.B. in der Handy-App ohne Anmeldung). */
+function kd_page_access_paste(): never
+{
+    $raw = trim((string) ($_POST['link'] ?? ''));
+    $token = preg_match('#(?:zugang/)?([a-f0-9]{48})\b#', $raw, $m) ? $m[1] : 'x';
+    kd_page_access($token);
+}
+
+/** Anleitung: App auf dem Startbildschirm speichern (iPhone und Android). Öffentlich, ohne Anmeldung. */
+function kd_guide_html(bool $short = false): string
+{
+    $iphone = '<ol class="steps"><li>Link antippen. Öffnet er sich in einer anderen App (z.B. Gmail), auf <strong>«In Safari öffnen»</strong> tippen.</li>'
+        . '<li>Unten auf das <strong>Teilen-Symbol</strong> tippen (Quadrat mit Pfeil nach oben; auf neueren iPhones evtl. hinter <strong>«…»</strong>).</li>'
+        . '<li>Nach unten wischen und <strong>«Zum Home-Bildschirm»</strong> wählen.</li>'
+        . '<li>Namen lassen oder ändern und oben rechts auf <strong>«Hinzufügen»</strong> tippen.</li></ol>';
+    $android = '<ol class="steps"><li>Link antippen – er öffnet sich in Chrome.</li>'
+        . '<li>Oben rechts auf die <strong>drei Punkte ⋮</strong> tippen.</li>'
+        . '<li><strong>«Zum Startbildschirm hinzufügen»</strong> oder <strong>«App installieren»</strong> wählen.</li>'
+        . '<li>Auf <strong>«Hinzufügen»</strong> bzw. <strong>«Installieren»</strong> tippen.</li></ol>'
+        . '<p class="hint">Samsung Internet: unten rechts <strong>Menü ☰ → «Seite hinzufügen zu» → «Startbildschirm»</strong>.</p>';
+    return '<div class="guide"><section class="card"><h2><span class="os">iPhone</span> Safari</h2>' . $iphone . '</section>'
+        . '<section class="card"><h2><span class="os">Android</span> Chrome</h2>' . $android . '</section></div>'
+        . ($short ? '' : '<section class="card"><h2>Gut zu wissen</h2><ul class="tips">'
+        . '<li><strong>Spielerinnen:</strong> zuerst den persönlichen Link aus E-Mail oder WhatsApp öffnen, dann speichern. Das Symbol öffnet danach direkt deinen Bereich.</li>'
+        . '<li><strong>Trainerteam:</strong> die Anmeldeseite öffnen, anmelden und dann speichern.</li>'
+        . '<li><strong>Abgemeldet?</strong> Den persönlichen Link nochmals öffnen oder auf der Startseite einfügen.</li>'
+        . '<li><strong>Handy verloren?</strong> Dem Trainerteam Bescheid geben – es erstellt einen neuen Link, der alte funktioniert dann nicht mehr.</li>'
+        . '<li><strong>Link nicht weitergeben</strong> – er ist nur für dich.</li></ul></section>');
+}
+
+function kd_page_guide(): never
+{
+    kd_page('App aufs Handy', '<section class="card"><p class="eyebrow">Anleitung</p><h1>App auf dem Handy speichern</h1>'
+        . '<p class="lead">So erscheint das Konditionstraining als Symbol auf deinem Startbildschirm – wie eine richtige App.</p>'
+        . '<div class="app-icon-row"><img src="' . e(kd_url('assets/icon-180.png')) . '" alt="" width="64" height="64"><span>So sieht das Symbol aus.</span></div></section>'
+        . kd_guide_html());
+}
+
+/** Web-App-Manifest: Symbol, Farben und Startadresse (Spielerin → ihr persönlicher Link, Trainerteam → Admin). */
+function kd_manifest(): never
+{
+    $start = kd_url('');
+    if ($p = kd_player()) {
+        $start = kd_url('zugang/' . $p['access_token']);
+    } elseif (kd_admin()) {
+        $start = kd_url('admin');
+    }
+    header('Content-Type: application/manifest+json; charset=utf-8');
+    echo json_encode(['name' => 'Konditionstraining · ' . kd_team(), 'short_name' => 'Kondition', 'lang' => 'de-CH',
+        'start_url' => $start, 'scope' => kd_url(''), 'display' => 'standalone', 'background_color' => '#f2f5f8', 'theme_color' => '#1d394a',
+        'icons' => [['src' => kd_url('assets/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any maskable'],
+            ['src' => kd_url('assets/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable'],
+            ['src' => kd_url('assets/icon.svg'), 'sizes' => 'any', 'type' => 'image/svg+xml']]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
 function kd_page_access(string $token): never
@@ -137,6 +196,7 @@ function kd_page_infos(): never
     foreach ($infos as $i) {
         $body .= kd_info_card($i, '', $i['updated_at'] > $seen);
     }
+    $body .= kd_guide_card();
     kd_page('Infos', $body);
 }
 
@@ -152,6 +212,14 @@ function kd_infos_mark_read(): never
     kd_mark_infos_read((int) $player['id']);
     http_response_code(204);
     exit;
+}
+
+/** Kleine Karte mit Link zur Anleitung «App aufs Handy». */
+function kd_guide_card(): string
+{
+    return '<article class="card info guide-card"><p class="eyebrow">Tipp</p><h2>App auf dem Handy speichern</h2>'
+        . '<p>Mit einem Symbol auf dem Startbildschirm bist du mit einem Tipp in deinem Bereich.</p>'
+        . '<p><a class="btn btn-ghost btn-small" href="' . e(kd_url('anleitung')) . '">Anleitung für iPhone und Android</a></p></article>';
 }
 
 function kd_info_card(array $i, string $actions = '', bool $new = false): string

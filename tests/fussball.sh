@@ -55,6 +55,8 @@ snap() { # snap <name> <datei> – speichert die Seite für die Vorschau, Links 
     -e 's#(href|action)="/app/fussballtraining/admin/(einstellungen|sicherung\.json)"#\1="13-admin-einstellungen.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/admin(\?[^"]*)?"#\1="06-admin-uebersicht.html"#g' \
     -e 's#(href|action)="/app/fussballtraining/meine"#\1="03-meine-laeufe.html"#g' \
+    -e 's#(href|action)="/app/fussballtraining/anleitung"#\1="17-anleitung.html"#g' \
+    -e 's#="/app/fussballtraining/assets/(icon[^"]*)"#="\1"#g' \
     -e 's#(href|action)="/app/fussballtraining/infos"#\1="04-infos.html"#g' \
     -e 's#action="/app/fussballtraining/"#action="03-meine-laeufe.html"#g' \
     -e 's#href="/app/fussballtraining/"#href="02-eintragen.html"#g' \
@@ -209,6 +211,32 @@ code -b "$L" "$URL/admin" > "$WORK/s.txt"; expect "Spielerin kommt nicht in den 
 code -b "$L" "$URL/admin/spielerin/$NINA" > "$WORK/s.txt"; expect "Spielerin sieht keine anderen Spielerinnen" "$WORK/s.txt" "302"
 code -b "$L" "$URL/admin/export.csv" > "$WORK/s.txt"; expect "Spielerin kann nichts exportieren" "$WORK/s.txt" "302"
 
+echo "5b. App aufs Handy (Symbol, Manifest, Anleitung, Link einfügen)"
+curl -s "$URL/anleitung" > "$WORK/r.html"
+clean "Anleitung ohne Anmeldung erreichbar" "$WORK/r.html"
+expect "Anleitung iPhone" "$WORK/r.html" "Zum Home-Bildschirm"
+expect "Anleitung Android" "$WORK/r.html" "Zum Startbildschirm hinzufügen"
+snap "17-anleitung" "$WORK/r.html"
+for f in icon-180.png icon-192.png icon-512.png icon-32.png icon.svg; do code "$URL/assets/$f" > "$WORK/s.txt"; expect "Symbol $f vorhanden" "$WORK/s.txt" "200"; done
+curl -s -b "$L" "$URL/meine" > "$WORK/r.html"
+expect "Symbol für iPhone verlinkt" "$WORK/r.html" 'rel="apple-touch-icon"'
+expect "Manifest verlinkt (mit Anmeldung)" "$WORK/r.html" 'rel="manifest" href="/app/fussballtraining/manifest.webmanifest" crossorigin="use-credentials"'
+expect "Hinweis «App speichern» vorbereitet" "$WORK/r.html" 'id="install-hint"'
+curl -s "$URL/manifest.webmanifest" > "$WORK/m.json"
+expect "Manifest ohne Anmeldung: Startseite" "$WORK/m.json" '"start_url":"/app/fussballtraining/"'
+expect "Manifest: eigenständige App" "$WORK/m.json" '"display":"standalone"'
+curl -s -b "$L" "$URL/manifest.webmanifest" > "$WORK/m.json"
+expect "Manifest Spielerin: startet mit persönlichem Link" "$WORK/m.json" "zugang/$LEA_T"
+curl -s -b "$AJAR" "$URL/manifest.webmanifest" > "$WORK/m.json"
+expect "Manifest Trainerteam: startet im Admin" "$WORK/m.json" '"start_url":"/app/fussballtraining/admin"'
+P2="$WORK/paste.txt"
+curl -s -c "$P2" -b "$P2" -L --data-urlencode "link=https://ki-smartwork.ch/app/fussballtraining/zugang/$LEA_T" "$URL/zugang" > "$WORK/r.html"
+expect "Anmelden mit eingefügtem Link" "$WORK/r.html" "Hallo Lea"
+curl -s -c "$P2" -b "$P2" -L --data-urlencode "link=https://ki-smartwork.ch/app/fussballtraining/zugang/falsch" "$URL/zugang" > "$WORK/r.html"
+expect "Falscher eingefügter Link abgelehnt" "$WORK/r.html" "Dieser Link funktioniert nicht mehr"
+curl -s "$URL/" > "$WORK/r.html"
+expect "Startseite: Feld zum Link einfügen" "$WORK/r.html" "Oder den Link hier einfügen"
+
 echo "6. Allgemeine Infos"
 curl -s -b "$L" "$URL/infos" > "$WORK/r.html"
 expect "Noch keine Infos" "$WORK/r.html" "keine Infos"
@@ -276,6 +304,8 @@ T=$(csrf "$WORK/r.html")
 curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=link_mail" "$URL/admin/spielerin/$LEA" > "$WORK/r.html"
 expect "Link per E-Mail gesendet" "$WORK/r.html" "Link per E-Mail an lea@test.ch gesendet"
 [ "$(q "SELECT COUNT(*) FROM kd_mail_log WHERE to_email = 'lea@test.ch' AND subject LIKE '%Link%'")" = "1" ] && ok "E-Mail im Versandprotokoll" || fail "E-Mail fehlt im Versandprotokoll"
+expect "E-Mail mit Link enthält Anleitung" "$APP/data/logs/mail.log" "/app/fussballtraining/anleitung"
+expect "WhatsApp-Text enthält Anleitung" "$WORK/r.html" "%2Fanleitung"
 curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=gratulieren" "$URL/admin/spielerin/$LEA" > "$WORK/r.html"
 expect "Geburtstagsgruss per E-Mail" "$WORK/r.html" "Geburtstagsgruss an Lea gesendet"
 curl -s -b "$AJAR" -c "$AJAR" -L --data-urlencode "_csrf=$T" -d "action=save" --data-urlencode "first_name=Lea" --data-urlencode "last_name=Muster-Meier" \
@@ -510,7 +540,7 @@ curl -s -b "$AJAR" -c "$AJAR" -L -d "_csrf=$T" "$URL/admin/abmelden" > "$WORK/r.
 expect "Admin abgemeldet" "$WORK/r.html" "Abgemeldet"
 code -b "$AJAR" "$URL/admin" > "$WORK/s.txt"; expect "Nach Abmelden kein Zugang" "$WORK/s.txt" "302"
 
-if [ -n "$SNAP" ]; then cp "$APP/assets/kondition.css" "$SNAP/"; fi
+if [ -n "$SNAP" ]; then cp "$APP/assets/kondition.css" "$APP"/assets/icon* "$SNAP/"; fi
 if grep -qi "error\|warning" "$WORK/server.log"; then echo "----- Server-Protokoll -----"; grep -i "error\|warning" "$WORK/server.log" | head -20; fi
 
 echo

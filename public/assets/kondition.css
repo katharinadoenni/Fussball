@@ -267,3 +267,19 @@ input[type=file]{font:400 15px var(--sans);color:var(--ink-2);max-width:100%}
 
 .roles{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .roles li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+
+/* Anleitung «App aufs Handy» und Hinweis */
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.guide h2{display:flex;align-items:center;gap:10px}
+.os{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--head);color:var(--gold);font-size:13px;letter-spacing:.04em}
+.steps{margin:0;padding-left:22px;display:grid;gap:10px}
+.steps li{padding-left:4px}
+.tips{margin:0;padding-left:20px;display:grid;gap:8px}
+.app-icon-row{display:flex;align-items:center;gap:14px}
+.app-icon-row img{border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.install-hint{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0;padding:10px 12px;border-radius:10px;background:var(--gold-soft);border:1px solid color-mix(in srgb,var(--gold) 60%,transparent);font-size:15px}
+.install-hint[hidden]{display:none}
+.install-hint span{flex:1 1 220px}
+.install-hint a{font-weight:650}
+.install-hint button{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--ink);font-size:22px;cursor:pointer}
+.guide-card{border-style:dashed}

@@ -9,8 +9,8 @@ if (PHP_SAPI === 'cli-server') {
     // (öffentliche Adresse /app/fussballtraining/…, CSS ausliefern, Code-Ordner sperren)
     $uri = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $rel = (string) preg_replace('#^/app/fussballtraining#', '', $uri);
-    if (preg_match('#^/assets/([A-Za-z0-9._-]+\.css)$#', $rel, $m) && is_file(__DIR__ . '/assets/' . $m[1])) {
-        header('Content-Type: text/css; charset=utf-8');
+    if (preg_match('#^/assets/([A-Za-z0-9._-]+\.(css|png|svg))$#', $rel, $m) && is_file(__DIR__ . '/assets/' . $m[1])) {
+        header('Content-Type: ' . ['css' => 'text/css; charset=utf-8', 'png' => 'image/png', 'svg' => 'image/svg+xml'][$m[2]]);
         readfile(__DIR__ . '/assets/' . $m[1]);
         exit;
     }
@@ -74,6 +74,12 @@ switch (true) {
         is_post() ? kd_page_entry() : kd_page_start();
     case (bool) preg_match('#^/zugang/([A-Za-z0-9]+)$#', $path, $m):
         kd_page_access($m[1]);
+    case $path === '/zugang' && is_post():
+        kd_page_access_paste();
+    case $path === '/manifest.webmanifest':
+        kd_manifest();
+    case $path === '/anleitung':
+        kd_page_guide();
     case $path === '/meine':
         kd_page_mine();
     case $path === '/infos':

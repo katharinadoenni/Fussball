@@ -40,14 +40,16 @@ function kd_fill(string $text, array $player, array $admin): string
 {
     $next = kd_next_birthday($player['birthday'] ?? null);
     return strtr($text, ['{vorname}' => $player['first_name'] ?? '', '{name}' => $player['last_name'] ?? '', '{team}' => kd_team(),
-        '{admin}' => $admin['name'], '{alter}' => (string) ($next['age'] ?? ''), '{link}' => isset($player['access_token']) ? kd_player_link($player) : '']);
+        '{admin}' => $admin['name'], '{alter}' => (string) ($next['age'] ?? ''), '{link}' => isset($player['access_token']) ? kd_player_link($player) : '',
+        '{anleitung}' => kd_abs_url('anleitung')]);
 }
 
 function kd_link_text(): string
 {
     return "Hallo {vorname}\n\nHier ist dein persönlicher Link für das Konditionstraining von {team}:\n{link}\n\n"
         . "Öffne ihn auf deinem Handy. Danach kannst du deine Läufe eintragen, deine Entwicklung sehen und die Infos vom Trainerteam lesen. "
-        . "Bitte gib den Link nicht weiter – er ist nur für dich.\n\nSportliche Grüsse\n{admin}";
+        . "Bitte gib den Link nicht weiter – er ist nur für dich.\n\n"
+        . "Tipp: Speichere die App als Symbol auf deinem Startbildschirm (zuerst den Link oben öffnen). Anleitung für iPhone und Android:\n{anleitung}\n\nSportliche Grüsse\n{admin}";
 }
 
 function kd_birthday_text(): string
@@ -783,7 +785,8 @@ function kd_page_admin_admins(): never
             if (isset($_POST['send_mail'])) {
                 $roleName = KD_ROLES[kd_role($target)];
                 $ok = kd_send_mail($target['email'], "Einladung: $roleName für " . kd_team(), "Hallo {$target['name']}\n\n{$me['name']} hat dich als $roleName für das Konditionstraining von "
-                    . kd_team() . " eingeladen.\n\nLege hier dein Passwort fest (Link " . KD_INVITE_DAYS . " Tage gültig):\n$inviteLink\n\nSportliche Grüsse\n{$me['name']}", $me);
+                    . kd_team() . " eingeladen.\n\nLege hier dein Passwort fest (Link " . KD_INVITE_DAYS . " Tage gültig):\n$inviteLink\n\n"
+                    . "Tipp: Die App lässt sich als Symbol auf dem Handy speichern. Anleitung:\n" . kd_abs_url('anleitung') . "\n\nSportliche Grüsse\n{$me['name']}", $me);
                 kd_flash($ok ? 'ok' : 'error', $ok ? 'Einladung an ' . $target['email'] . ' gesendet.' : 'Die E-Mail konnte nicht gesendet werden – bitte den Link unten selbst weitergeben.');
             }
         } elseif ($target && in_array($action, ['deactivate', 'delete', 'make_trainer', 'make_admin'], true)) {

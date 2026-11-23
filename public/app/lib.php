@@ -737,7 +737,7 @@ function kd_infos_dialog(array $player, int $unread, bool $autoOpen): string
     foreach (db_all('SELECT * FROM kd_infos ORDER BY pinned DESC, updated_at DESC') as $i) {
         $cards .= kd_info_card($i, '', $i['updated_at'] > $seen);
     }
-    $cards = $cards ?: '<p class="empty">Zurzeit gibt es keine Infos.</p>';
+    $cards = ($cards ?: '<p class="empty">Zurzeit gibt es keine Infos.</p>') . kd_guide_card();
     return '<dialog id="infos-dialog" class="dialog" aria-labelledby="infos-title"' . ($autoOpen && $unread > 0 ? ' data-auto-open="1"' : '') . '>'
         . '<div class="dialog-head"><h2 id="infos-title">Infos vom Trainerteam</h2>'
         . '<form method="dialog"><button class="btn btn-ghost btn-small" type="submit" aria-label="Infos schliessen">Schliessen</button></form></div>'
@@ -765,6 +765,17 @@ function kd_version_html(): string
     return '<span class="version" title="Stand der App">' . e(implode(' · ', $parts)) . '</span>';
 }
 
+/** Hinweis auf dem Handy, solange die App nicht auf dem Startbildschirm liegt (wegklickbar, merkt sich das Gerät). */
+function kd_install_hint(): string
+{
+    return '<p class="install-hint" id="install-hint" hidden><span>📱 Tipp: Speichere die App als Symbol auf deinem Startbildschirm.</span>'
+        . '<a href="' . e(kd_url('anleitung')) . '">So geht’s</a><button type="button" aria-label="Hinweis schliessen">×</button></p>'
+        . '<script>(function(){var h=document.getElementById("install-hint");if(!h)return;'
+        . 'var app=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;'
+        . 'var phone=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);var off=false;try{off=localStorage.getItem("kd-hint-off")==="1"}catch(e){}'
+        . 'if(app||!phone||off)return;h.hidden=false;h.querySelector("button").addEventListener("click",function(){h.hidden=true;try{localStorage.setItem("kd-hint-off","1")}catch(e){}});})();</script>';
+}
+
 // ---- Seitengerüst --------------------------------------------------------
 
 function kd_page(string $title, string $body, int $status = 200): never
@@ -789,11 +800,16 @@ function kd_page(string $title, string $body, int $status = 200): never
     $css = e(kd_url('assets/kondition.css')) . '?v=' . (int) @filemtime(__DIR__ . '/../assets/kondition.css');
     echo '<!doctype html><html lang="de-CH"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         . '<meta name="robots" content="noindex,nofollow"><title>' . e($title) . ' · ' . e(kd_team()) . '</title>'
-        . '<link rel="stylesheet" href="' . $css . '"></head><body>'
+        . '<link rel="stylesheet" href="' . $css . '">'
+        . '<link rel="manifest" href="' . e(kd_url('manifest.webmanifest')) . '" crossorigin="use-credentials">'
+        . '<link rel="icon" href="' . e(kd_url('assets/icon.svg')) . '" type="image/svg+xml"><link rel="icon" href="' . e(kd_url('assets/icon-32.png')) . '" sizes="32x32" type="image/png">'
+        . '<link rel="apple-touch-icon" href="' . e(kd_url('assets/icon-180.png')) . '">'
+        . '<meta name="theme-color" content="#1d394a"><meta name="apple-mobile-web-app-title" content="Kondition">'
+        . '</head><body>'
         . '<header class="top"><div class="wrap top-in"><a class="brand" href="' . e(kd_url(kd_admin() ? 'admin' : '')) . '"><span class="ball" aria-hidden="true"></span>'
         . '<span><strong>' . e(kd_team()) . '</strong><small>' . (kd_admin() ? e(KD_ROLES[kd_role(kd_admin())]) . ' · Konditionstraining' : 'Konditionstraining') . '</small></span></a>'
         . ($nav !== '' ? '<nav class="nav">' . $nav . '</nav>' : '') . '</div></header>'
-        . '<main class="wrap main">' . kd_take_flash() . $body . '</main>' . ($dialog ?? '')
+        . '<main class="wrap main">' . kd_take_flash() . (kd_session() ? kd_install_hint() : '') . $body . '</main>' . ($dialog ?? '')
         . '<footer class="wrap foot"><span>Die Angaben sind nur für die jeweilige Spielerin und das Trainerteam sichtbar.</span>' . kd_version_html() . '</footer>'
         . '</body></html>';
     exit;
