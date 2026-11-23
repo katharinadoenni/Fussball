@@ -1,0 +1,243 @@
+Testdatenbank anlegen
+1. Vor der Einrichtung
+  ✓ Startseite leitet zur Einrichtung
+  ✓ Einrichtung verlangt Login der Hauptseite
+  ✓ Programmcode gesperrt
+  ✓ Design-Datei unter neuer Adresse
+  ✓ Sicherheits-Header (CSP)
+  ✓ Nicht in fremde Seiten einbettbar
+  ✓ Für Suchmaschinen gesperrt
+  ✓ Zugangsdaten gesperrt
+  ✓ Version in der Fusszeile
+2. Einrichten (direkt in der Datenbank) und Admin-Anmeldung
+  ✓ Start ohne Link: Hinweis auf persönlichen Link
+  ✓ Mannschaftsname aus früherer Version übernommen
+  ✓ Ohne Link keine Läufe
+  ✓ Ohne Login kein Admin
+  ✓ Falscher Link abgelehnt
+  ✓ Falsches Passwort abgelehnt
+  ✓ Angemeldet: Übersicht
+  ✓ Leere Übersicht ohne Fehler
+3. Spielerinnen anlegen
+  ✓ Name fehlt → Fehlermeldung
+  ✓ Ungültige E-Mail abgelehnt
+  ✓ Pause: Ende vor Beginn abgelehnt
+  ✓ Lea angelegt
+  ✓ Spielerin-Seite ohne Fehler
+  ✓ Ungültiges Datum (31. Februar) abgelehnt
+  ✓ Geburtstag aus Tag/Monat/Jahr gespeichert
+  ✓ Persönlicher Link mit langem Zufallsschlüssel
+4. Spielerin mit persönlichem Link
+  ✓ Link öffnet Erfassung mit Namen
+  ✓ Geburtstagsgruss am Geburtstag
+  ✓ Kein Namensfeld mehr nötig
+  ✓ Länge frei wählbar, in Metern
+  ✓ Datum mit separatem Tag-Feld
+  ✓ Datum mit Monatsauswahl
+  ✓ Datum mit separatem Jahr-Feld
+  ✓ Heute vorausgefüllt (Tag)
+  ✓ Erfassung ohne Fehler
+  ✓ Lauf gespeichert
+  ✓ Beliebige Länge (3200 m)
+  ✓ Lauf mit Tag/Monat/Jahr gespeichert
+  ✓ 30. Februar abgelehnt
+  ✓ Unvollständiges Datum abgelehnt
+  ✓ Kilometer statt Meter erkannt
+  ✓ Kommazahl abgelehnt
+  ✓ Unmögliche Zeit abgelehnt
+  ✓ Datum in der Zukunft abgelehnt
+  ✓ Sekunden über 59 abgelehnt
+  ✓ Ohne CSRF abgelehnt
+5. Meine Läufe (nur eigener Bereich)
+  ✓ Meine Läufe ohne Fehler
+  ✓ Entwicklungskurve vorhanden
+  ✓ Kurve mit Linie pro Strecke
+  ✓ Geschwindigkeit berechnet (3000 m in 13:50 = 13.0 km/h)
+  ✓ Meter pro Sekunde (3000 m ÷ 830 s = 3.61 m/s)
+  ✓ Zeit pro 1000 m (13:50 ÷ 3 = 4:37)
+  ✓ Trend schneller
+  ✓ Trend langsamer
+  ✓ Abstand zur Mannschaftsbesten (13:50 vs 12:40)
+  ✓ Bestzeit über 400 m bei Nina, Lea mit Abstand
+  ✓ Keine fremden Namen
+  ✓ Keine fremden Läufe
+  ✓ Spielerin kommt nicht in den Admin
+  ✓ Spielerin sieht keine anderen Spielerinnen
+  ✓ Spielerin kann nichts exportieren
+5b. App aufs Handy (Symbol, Manifest, Anleitung, Link einfügen)
+  ✓ Anleitung ohne Anmeldung erreichbar
+  ✓ Anleitung iPhone
+  ✓ Anleitung Android
+  ✓ Symbol icon-180.png vorhanden
+  ✓ Symbol icon-192.png vorhanden
+  ✓ Symbol icon-512.png vorhanden
+  ✓ Symbol icon-32.png vorhanden
+  ✓ Symbol icon.svg vorhanden
+  ✓ Symbol für iPhone verlinkt
+  ✓ Manifest verlinkt (mit Anmeldung)
+  ✓ Hinweis «App speichern» vorbereitet
+  ✓ Manifest ohne Anmeldung: Startseite
+  ✓ Manifest: eigenständige App
+  ✓ Manifest Spielerin: startet mit persönlichem Link
+  ✓ Manifest Trainerteam: startet im Admin
+  ✓ Anmelden mit eingefügtem Link
+  ✓ Falscher eingefügter Link abgelehnt
+  ✓ Startseite: Feld zum Link einfügen
+6. Allgemeine Infos
+  ✓ Noch keine Infos
+  ✓ Info gespeichert
+  ✓ Rote Zahl: 2 neue Infos
+  ✓ Infos-Popup vorhanden
+  ✓ Popup öffnet sich bei neuen Infos
+  ✓ Neue Info markiert
+  ✓ Popup gelesen gemeldet
+  ✓ Gelesen-Meldung nur für Spielerinnen
+  ✓ Rote Zahl nach dem Lesen weg
+  ✓ Popup öffnet sich nicht mehr von selbst
+  ✓ Geänderte Info zählt wieder als neu
+  ✓ Spielerin sieht Info
+  ✓ Wichtige Info markiert
+  ✓ Infos ohne Fehler
+  ✓ Spielerin kann keine Infos schreiben
+7. Admin: Übersicht, Geburtstage, Pause
+  ✓ Übersicht ohne Fehler
+  ✓ Geburtstag heute (Lea)
+  ✓ Gratulieren per WhatsApp
+  ✓ Nächster Geburtstag (Nina in 5 Tagen)
+  ✓ Spielerpause (Mia)
+  ✓ Mannschaftskurve
+  ✓ Kurve mit Linie pro Spielerin
+  ✓ Potenzial gross für Mia (16:20 vs 12:40)
+  ✓ Kennzahl Spielerinnen = 4
+  ✓ Kurve für andere Strecke
+  ✓ Spielerinnen-Liste ohne Fehler
+  ✓ Status Pause in Liste
+  ✓ Notfallkontakt in Liste
+8. Admin: Spielerin bearbeiten, Link senden, gratulieren
+  ✓ Spielerin-Seite ohne Fehler
+  ✓ Persönlicher Link sichtbar
+  ✓ WhatsApp mit Schweizer Nummer
+  ✓ WhatsApp an Notfallkontakt
+  ✓ Kurve der Spielerin
+  ✓ Link per E-Mail gesendet
+  ✓ E-Mail im Versandprotokoll
+  ✓ E-Mail mit Link enthält Anleitung
+  ✓ WhatsApp-Text enthält Anleitung
+  ✓ Geburtstagsgruss per E-Mail
+  ✓ Name bearbeitet
+  ✓ Spielerin sieht neuen Namen
+  ✓ Interne Notiz für Spielerin unsichtbar
+9. Läufe: Feedback und Notiz
+  ✓ Läufe-Seite ohne Fehler
+  ✓ Feedback gegeben
+  ✓ Feedback-Knopf als gewählt markiert
+  ✓ Zweiter Klick nimmt Feedback weg
+  ✓ Spielerin sieht Feedback «stolz»
+  ✓ Spielerin sieht Feedback «besser»
+  ✓ Spielerin sieht Notiz
+  ✓ Filter mit Tag/Monat/Jahr ohne Fehler
+  ✓ Filter ab gestern blendet ältere Läufe aus
+  ✓ Filter nach Spielerin
+  ✓ CSV-Export mit Kopfzeile
+  ✓ CSV mit km/h und m/s
+  ✓ CSV enthält Läufe mit m/s
+  ✓ CSV enthält Feedback
+  ✓ CSV schützt vor Excel-Formeln
+10. Nachrichten an Spielerinnen und Eltern
+  ✓ Nachrichten-Seite ohne Fehler
+  ✓ E-Mail an Eltern gesendet
+  ✓ WhatsApp-Knopf für Eltern mit Platzhalter ersetzt
+  ✓ Eltern-E-Mails im Protokoll
+  ✓ Nur WhatsApp-Knöpfe
+  ✓ Ohne Empfängergruppe → Hinweis
+11. Mehrere Admins
+  ✓ Rolle Trainer in der Team-Liste
+  ✓ Rollen erklärt
+  ✓ Admins-Seite ohne Fehler
+  ✓ Einladungslink angezeigt
+  ✓ Einladung per E-Mail
+  ✓ Doppelte E-Mail abgelehnt
+  ✓ Zu kurzes Passwort abgelehnt
+  ✓ Neuer Trainer angemeldet
+  ✓ Kopfzeile zeigt Rolle Trainer
+  ✓ Trainer sieht keinen Menüpunkt Team
+  ✓ Trainer sieht keinen Menüpunkt Sicherungen
+  ✓ Trainer verwaltet Spielerinnen
+  ✓ Trainer darf Excel importieren
+  ✓ Trainer sieht Läufe
+  ✓ Trainer kann kein Team verwalten
+  ✓ Trainer kann keine Sicherungen öffnen
+  ✓ Trainer kann keinen Datenexport laden
+  ✓ Trainer hat «Mein Konto»
+  ✓ Trainer kann Mannschaftsname nicht ändern
+  ✓ Trainer legt Spielerin an
+  ✓ Trainer: Mannschaftsname geschützt
+  ✓ Mannschaftsname unverändert
+  ✓ Einladungslink nur einmal gültig
+  ✓ Sich selbst entfernen verhindert
+  ✓ Eigene Rolle nicht änderbar
+  ✓ Trainer zum Admin gemacht
+  ✓ Neue Rolle wirkt sofort
+  ✓ Zurück zum Trainer
+  ✓ Admin deaktiviert
+  ✓ Deaktivierter Admin sofort abgemeldet
+12. Einstellungen und Sicherung
+  ✓ Einstellungen ohne Fehler
+  ✓ Sicherung enthält Spielerinnen
+  ✓ Sicherung enthält Läufe
+  ✓ Sicherung ohne Passwörter
+  ✓ Spielerin kann keine Sicherung laden
+12b. Import aus Excel und CSV
+  ✓ Import-Seite ohne Fehler
+  ✓ Vorlage mit Überschriften
+  ✓ CSV-Vorschau ohne Fehler
+  ✓ CSV: Umlaute richtig
+  ✓ CSV: Zählung neu/ergänzt/Fehler
+  ✓ CSV: Handy mit führender 0
+  ✓ CSV: Geburtstag erkannt
+  ✓ Manipulierte Vorschau abgelehnt
+  ✓ CSV importiert
+  ✓ Notfalltelefon übernommen
+  ✓ Bestehende Angaben nicht überschrieben
+  ✓ Excel-Vorschau ohne Fehler
+  ✓ Excel: Name gelesen
+  ✓ Excel: Datum aus Excel-Zahl (40617 = 15.03.2011)
+  ✓ Alte .xls-Datei: Hinweis
+12c. Sicherungen (täglich, von Hand, wiederherstellen)
+  ✓ Tägliche Sicherung automatisch erstellt
+  ✓ Nur eine tägliche Sicherung pro Tag
+  ✓ Sicherungen vom Web aus gesperrt
+  ✓ Sicherungen-Seite ohne Fehler
+  ✓ Tägliche Sicherung in der Liste
+  ✓ Sicherung von Hand erstellt
+  ✓ Download enthält alle Läufe
+  ✓ Download enthält Einstellungen
+  ✓ Download enthält Admins (Fullbackup)
+  ✓ Spielerin kann keine Sicherung laden
+  ✓ Kein Zugriff auf andere Dateien
+  ✓ Läufe testweise gelöscht
+  ✓ Wiederhergestellt
+  ✓ Danach neu anmelden
+  ✓ Alle Läufe wieder da
+  ✓ Einstellungen wieder da
+  ✓ Vorheriger Stand automatisch gesichert
+  ✓ Nach Wiederherstellen alle abgemeldet
+  ✓ Admin-Passwort aus Sicherung funktioniert
+  ✓ Hochgeladene Sicherung wiederhergestellt
+  ✓ Falsche Datei abgelehnt
+  ✓ Falsche Datei ändert nichts (weiter angemeldet)
+  ✓ Cron mit falschem Schlüssel gesperrt
+  ✓ Cron mit richtigem Schlüssel
+13. Link erneuern, deaktivieren, löschen
+  ✓ Neuer Link erstellt
+  ✓ Altes Gerät abgemeldet
+  ✓ Alter Link ungültig
+  ✓ Spielerin deaktiviert
+  ✓ Deaktivierte Spielerin ausgesperrt
+  ✓ Spielerin gelöscht
+  ✓ Läufe der gelöschten Spielerin entfernt
+14. Abmelden
+  ✓ Admin abgemeldet
+  ✓ Nach Abmelden kein Zugang
+
+Alle Prüfungen bestanden.
